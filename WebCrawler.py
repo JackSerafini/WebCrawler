@@ -1,7 +1,11 @@
 import requests
+# Built-in module for asyncronous programming
 import asyncio
+# Built-in module to handle HTML
 from html.parser import HTMLParser
+# Built-in module to handle URLs
 from urllib.parse import urljoin, urlparse
+# Built-in module to parse robots.txt files
 from urllib.robotparser import RobotFileParser
 
 # class WebCrawler():
@@ -9,22 +13,17 @@ from urllib.robotparser import RobotFileParser
 #         self.urls = set(urls)
 #         self.seen_urls = {}
 #         self.workers = workers # used for asyncronous work
-#         self.limit = limit 
+#         self.limit = limit
 
-class URLFilterer():
-    def __init__(self):
-        pass
-
-    def filter_url(self):
-        pass
-
-
+# Class to parse given URLs, based on the HTMLParser class built-in Python
 class URLParser(HTMLParser):
+    # The init method recalls the one from the superclass ...
     def __init__(self, base_url):
         super().__init__()
         self.base_url = base_url
         self.found_urls = list()
 
+    # Interested in finding all tags starting with 'a' (-> links)
     def handle_starttag(self, tag: str, attrs):
         if tag != "a":
             return
@@ -43,6 +42,7 @@ class WebCrawler():
         self.max_pages = max_pages
         self.visited = set()
 
+        # Parser for the robots.txt (to check what URLs can be crawled)
         self.robot_parser = RobotFileParser()
         self.robot_parser.set_url(urljoin(root_url, 'robots.txt'))
         self.robot_parser.read()
@@ -50,12 +50,17 @@ class WebCrawler():
     def crawl(self):
         pass
 
+    def parse_url(self):
+        pass
+
+crawler = WebCrawler("https://books.toscrape.com/")
+
 urls = list()
 seen_urls = set()
 limit = 25
 total = 0
 
-urls.append("https://books.toscrape.com")
+urls.append("https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html")
 
 # while total <= limit:
 
@@ -69,4 +74,4 @@ parser.feed(response.text)
 
 urls.extend(parser.found_urls)
 
-# print(urls)
+print(urls)
