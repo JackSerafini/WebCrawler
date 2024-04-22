@@ -1,6 +1,8 @@
-import time
 import requests
+import asyncio
 from html.parser import HTMLParser
+from urllib.parse import urljoin, urlparse
+from urllib.robotparser import RobotFileParser
 
 # class WebCrawler():
 #     def __init__(self, urls, workers: int = 10, limit: int = 25):
@@ -18,8 +20,9 @@ class URLFilterer():
 
 
 class URLParser(HTMLParser):
-    def __init__(self):
+    def __init__(self, base_url):
         super().__init__()
+        self.base_url = base_url
         self.found_urls = list()
 
     def handle_starttag(self, tag: str, attrs):
@@ -28,11 +31,24 @@ class URLParser(HTMLParser):
         
         for attr, url in attrs:
             if attr == "href":
+                absolute_url = urljoin(self.base_url, url)
 
-                print(url)
-                
-                # Here check if the URL is okay (-> FILTER)
-                self.found_urls.append(url)
+                # Here check if the URL is okay (-> FILTER) ?
+                self.found_urls.append(absolute_url)
+
+class WebCrawler():
+    def __init__(self, root_url, max_depth = 2, max_pages = 10):
+        self.root_url = root_url
+        self.max_depth = max_depth
+        self.max_pages = max_pages
+        self.visited = set()
+
+        self.robot_parser = RobotFileParser()
+        self.robot_parser.set_url(urljoin(root_url, 'robots.txt'))
+        self.robot_parser.read()
+
+    def crawl(self):
+        pass
 
 urls = list()
 seen_urls = set()
@@ -45,12 +61,10 @@ urls.append("https://books.toscrape.com")
 
 url = urls.pop(0)
 
-time.sleep(.1)
-
 response = requests.get(url)
 # print(response.text)
 
-parser = URLParser()
+parser = URLParser(url)
 parser.feed(response.text)
 
 urls.extend(parser.found_urls)
