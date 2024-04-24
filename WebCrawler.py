@@ -31,7 +31,7 @@ class URLParser(HTMLParser):
 class WebCrawler():
     # The whole crawling is based on the given root url once initialising the class
     # There are two optional parameters which are the maximum number of urls crawled and the number of workers used to do so
-    def __init__(self, root_url: str, max_urls: int = 50, num_workers: int = 5):
+    def __init__(self, root_url: str, max_urls: int = 1000, num_workers: int = 5):
         self.root_url = root_url
         self.max_urls = max_urls
         self.num_workers = num_workers
@@ -89,6 +89,10 @@ class WebCrawler():
         
         # Thus the URL is okay to visit
         self.visited.add(url)
+        # If you want to check the progression of the crawling...
+        # if len(self.visited) % 10 == 0:
+        #     print(len(self.visited))
+
         try:
             # Through the session created send a request to the URL
             async with session.get(url) as response:
@@ -97,8 +101,13 @@ class WebCrawler():
                     # Get the HTML content and sent it to the function to parse it
                     html_content = await response.text()
                     await self.parse_url(url, html_content)
-                else:
-                    print(f"Failed to retrieve {url} with status: {response.status}")
+                # else:
+                #     print(f"Failed to retrieve {url} with status: {response.status}")
+
+        except Exception as e:
+            # print(f"Error fetching {url}: {str(e)}")
+            pass
+
         finally:
             self.queue.task_done()
 
@@ -116,16 +125,17 @@ class WebCrawler():
                     # Add the new URL to the queue
                     await self.queue.put(absolute_url)
 
-crawler = WebCrawler("https://books.toscrape.com/")
-start = time.perf_counter()
-asyncio.run(crawler.crawl())
-end = time.perf_counter()
-seen = sorted(crawler.visited)
-print("Results:")
-for url in seen:
-    print(url)
-print(f"Found: {len(seen)} URLs")
-print(f"Done in {end - start:.2f}s")
+if __name__ == "__main__":
+    crawler = WebCrawler("https://www.degasperis.it/area_pazienti/articoli/54/la_patata.html")
+    start = time.perf_counter()
+    asyncio.run(crawler.crawl(), debug=True)
+    end = time.perf_counter()
+    seen = sorted(crawler.visited)
+    print("Results:")
+    for url in seen:
+        print(url)
+    print(f"Found: {len(seen)} URLs")
+    print(f"Done in {end - start:.2f}s")
 
 # synchronous crawler done in around 22 seconds
 # asynchronous crawler DFS done in around 5 seconds
@@ -135,3 +145,22 @@ print(f"Done in {end - start:.2f}s")
 # that run in the same event loop but are dedicated to performing a specific subset of tasks 
 # repeatedly. In the context of a web crawler, each worker might continuously fetch URLs from a 
 # queue, process them, and possibly enqueue more URLs.
+
+# Fairness
+# A "fair" crawler operates in a way that respects the websites it visits. This involves several specific practices:
+
+# Rate Limiting: A fair crawler does not overwhelm a website's server by making too many requests in a short period. It respects the site's robots.txt rules regarding crawl rate and observes polite intervals between requests to prevent undue load on the servers.
+# Obeying robots.txt: This file on websites specifies which parts of the site should not be crawled. A fair crawler respects these rules and avoids crawling disallowed areas, thereby adhering to the website's wishes and legal guidelines.
+# User-Agent Transparency: It clearly identifies itself with a truthful and informative User-Agent string. This allows website administrators to distinguish the crawler from normal user traffic, trace its activity, and configure server-side rules specifically for it if necessary.
+# Bandwidth Consideration: The crawler minimizes the bandwidth it consumes from each website, understanding that excessive use of bandwidth can interfere with the normal function of the website, affecting its ability to serve content to human users.
+
+# Robustness
+# A "robust" crawler is designed to handle various operational challenges effectively:
+
+# Error Handling: It can gracefully handle errors encountered during the crawling process, such as HTTP errors, connection timeouts, or redirects. A robust crawler is prepared to retry failed requests, but with an appropriate delay and a limit on retries to avoid causing issues for the website.
+# Adaptability: It can manage different website structures and content types, adapting its crawling strategy as needed. This includes handling dynamic content delivered via JavaScript, parsing multiple content types, and following embedded links in various formats.
+# Scalability: It can efficiently manage resources to handle large-scale operations. This includes scaling up to crawl more sites or more extensive areas of a site without a significant drop in performance or reliability.
+# Resilience to Anti-Crawling Techniques: Websites may employ techniques to block or restrict automated crawlers. A robust crawler might use strategies to ethically navigate these controls, always in compliance with legal boundaries and ethical standards.
+# Content Parsing and Extraction: The ability to accurately parse and extract useful data from diverse and complex web pages is crucial for a robust crawler. This involves dealing with different encodings, languages, and rapidly changing web standards.
+
+# Check this info and maybe add like a paragraph explaining the choices made
