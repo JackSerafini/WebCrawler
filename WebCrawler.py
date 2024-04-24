@@ -35,11 +35,12 @@ class URLParser(HTMLParser):
                 # Here check if the URL is okay (-> FILTER) ?
                 self.found_urls.append(absolute_url)
 
+# Main class to crawl the web
 class WebCrawler():
-    def __init__(self, root_url, max_depth = 2, max_pages = 10):
+    def __init__(self, root_url, max_depth = 2, max_urls = 25):
         self.root_url = root_url
+        self.max_urls = max_urls
         self.max_depth = max_depth
-        self.max_pages = max_pages
         self.visited = set()
 
         # Parser for the robots.txt (to check what URLs can be crawled)
@@ -50,8 +51,24 @@ class WebCrawler():
     def crawl(self):
         pass
 
+    def visit_url(self, url, depth):
+        if url in self.visited:
+            return
+        if len(self.visited) > self.max_urls:
+            return
+        if depth > self.max_depth:
+            return
+        
+        allowed_robots = self.robot_parser.can_fetch("*", url)
+        if not allowed_robots:
+            print(f"Access denied by robots.txt to {url}")
+            return
+        
+        # Thus the URL is okay to visit
+        # ...
+
     def parse_url(self):
-        pass
+        parser = URLParser()
 
 crawler = WebCrawler("https://books.toscrape.com/")
 
