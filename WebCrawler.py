@@ -1,4 +1,5 @@
 import requests
+import time
 # Built-in module for asyncronous programming
 import asyncio
 # Built-in module to handle HTML
@@ -8,19 +9,11 @@ from urllib.parse import urljoin, urlparse
 # Built-in module to parse robots.txt files
 from urllib.robotparser import RobotFileParser
 
-# class WebCrawler():
-#     def __init__(self, urls, workers: int = 10, limit: int = 25):
-#         self.urls = set(urls)
-#         self.seen_urls = {}
-#         self.workers = workers # used for asyncronous work
-#         self.limit = limit
-
 # Class to parse given URLs, based on the HTMLParser class built-in Python
 class URLParser(HTMLParser):
     # The init method recalls the one from the superclass ...
-    def __init__(self, base_url):
+    def __init__(self):
         super().__init__()
-        self.base_url = base_url
         self.found_urls = list()
 
     # Interested in finding all tags starting with 'a' (-> links)
@@ -30,14 +23,11 @@ class URLParser(HTMLParser):
         
         for attr, url in attrs:
             if attr == "href":
-                absolute_url = urljoin(self.base_url, url)
-
-                # Here check if the URL is okay (-> FILTER) ?
-                self.found_urls.append(absolute_url)
+                self.found_urls.append(url)
 
 # Main class to crawl the web
 class WebCrawler():
-    def __init__(self, root_url, max_depth = 2, max_urls = 25):
+    def __init__(self, root_url: str, max_depth: int = 2, max_urls: int = 25):
         self.root_url = root_url
         self.max_urls = max_urls
         self.max_depth = max_depth
@@ -49,12 +39,12 @@ class WebCrawler():
         self.robot_parser.read()
 
     def crawl(self):
-        pass
+        self.visit_url(self.root_url, 0)
 
-    def visit_url(self, url, depth):
+    def visit_url(self, url: str, depth: int):
         if url in self.visited:
             return
-        if len(self.visited) > self.max_urls:
+        if len(self.visited) >= self.max_urls:
             return
         if depth > self.max_depth:
             return
@@ -65,30 +55,50 @@ class WebCrawler():
             return
         
         # Thus the URL is okay to visit
-        # ...
+        self.visited.add(url)
+        response = requests.get(url)
+        html_content = response.text
+        self.parse_url(url, html_content, depth)
 
-    def parse_url(self):
+    # Pass the URL, the HTML_content and the
+    def parse_url(self, current_url: str, text: str, depth: int):
         parser = URLParser()
+        parser.feed(text)
+        for url in parser.found_urls:
+            absolute_url = urljoin(current_url, url)
+            if urlparse(absolute_url).netloc == urlparse(self.root_url).netloc:
+                self.visit_url(absolute_url, depth + 1)
 
 crawler = WebCrawler("https://books.toscrape.com/")
+start = time.perf_counter()
+crawler.crawl()
+end = time.perf_counter()
+seen = sorted(crawler.visited)
+print("Results:")
+for url in seen:
+    print(url)
+print(f"Found: {len(seen)} URLs")
+print(f"Done in {end - start:.2f}s")
 
-urls = list()
-seen_urls = set()
-limit = 25
-total = 0
+# synchronous crawler done in around 22 seconds
 
-urls.append("https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html")
+# urls = list()
+# seen_urls = set()
+# limit = 25
+# total = 0
 
-# while total <= limit:
+# urls.append("https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html")
 
-url = urls.pop(0)
+# # while total <= limit:
 
-response = requests.get(url)
-# print(response.text)
+# url = urls.pop(0)
 
-parser = URLParser(url)
-parser.feed(response.text)
+# response = requests.get(url)
+# # print(response.text)
 
-urls.extend(parser.found_urls)
+# parser = URLParser(url)
+# parser.feed(response.text)
 
-print(urls)
+# urls.extend(parser.found_urls)
+
+# print(urls)
