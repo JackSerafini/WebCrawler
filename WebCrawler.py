@@ -117,7 +117,7 @@ class WebCrawler():
             session: The session created when all the workers are initialised used to handle client requests.
         """
         # If you want to add a delay in between requests (it does impact greatly on performances)
-        # asyncio.sleep(.1)
+        # await asyncio.sleep(0.5)
         # First get the first URL of the queue
         url = await self.queue.get()
 
@@ -184,7 +184,7 @@ class WebCrawler():
                     await self.queue.put(absolute_url)
 
 if __name__ == "__main__":
-    crawler = WebCrawler("https://books.toscrape.com/") # Change here the root URL (tried examples: https://books.toscrape.com/ , https://quotes.toscrape.com/ , https://www.subito.it/)
+    crawler = WebCrawler("https://books.toscrape.com/") # Change here the root URL (tried examples: https://books.toscrape.com/ , https://quotes.toscrape.com/ , https://www.subito.it/ , https://it.wikipedia.org/wiki/Pagina_principale)
     start = time.perf_counter()
     asyncio.run(crawler.crawl())
     end = time.perf_counter()
