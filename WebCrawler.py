@@ -11,43 +11,73 @@ from urllib.parse import urljoin, urlparse
 # Built-in module to parse robots.txt files
 from urllib.robotparser import RobotFileParser
 
-# Class to parse given URLs, based on the built-in HTMLParser class
 class URLParser(HTMLParser):
-    # The init method recalls the one from the superclass and adds a list to keep track of found urls
-    def __init__(self):
-        super().__init__()
-        self.found_urls = list()
+    """
+    Represent a parser for URLs, based on the built-in HTMLParser class.
 
-    # Interested in finding all tags starting with 'a' (-> links)
+    This parser specifically looks for 'a' tags to extract URLs from their href attributes.
+    """
+    
+    def __init__(self):
+        """
+        Initialise a new URLParser object.
+
+        This function recalls the init function from the superclass and adds a set to keep track of found urls.
+        """
+        super().__init__()
+        self.found_urls = set()
+
     def handle_starttag(self, tag: str, attrs):
+        """
+        Handle the start of an HTML tag during parsing. Specifically, it looks for all tags starting with 'a'.
+
+        Parameters:
+            tag (str): The name of the tag that is starting.
+            attrs (list of (str, str)): A list of (attribute, value) pairs containing the attributes found inside the tag's <> brackets.
+        """
         if tag != "a":
             return
         # If the attribute of the tag is href it means that it is a link
         for attr, url in attrs:
             if attr == "href":
-                self.found_urls.append(url)
+                self.found_urls.add(url)
+
 
 # Main class to crawl the web
 class WebCrawler():
-    # The whole crawling is based on the given root url once initialising the class
-    # There are two optional parameters which are the maximum number of urls crawled and the number of workers used to do so
+    """
+    Represent an asynchronous web crawler.
+    """
+
     def __init__(self, root_url: str, max_urls: int = 1000, num_workers: int = 5):
+        """
+        Initialise a new WebCrawler object.
+
+        Parameters:
+            root_url (str): The URL given upon initialisation from which the whole crawling starts.
+            max_urls (int, optional): The maximum number of URLs that the crawler can fetch.
+            num_workers (int, optional): The number of workers (tasks) used during the crawling.
+        """
         self.root_url = root_url
         self.max_urls = max_urls
         self.num_workers = num_workers
         # Initialise a queue to keep track of the urls to analyse (to perform a breadth-first search)
         self.queue = asyncio.Queue()
         self.queue.put_nowait(self.root_url)
-        # Create a list (set) to keep track of seen urls
+        # Initialise a set to keep track of seen urls
         self.visited = set()
-
         # Parser for the robots.txt (to check what URLs can be crawled)
         self.robot_parser = RobotFileParser()
         self.robot_parser.set_url(urljoin(root_url, 'robots.txt'))
         self.robot_parser.read()
 
-    # Function to start the crawling
     async def crawl(self):
+        """
+        Start the crawling. 
+        
+        The function starts a ClientSession and initialises the tasks to perform the crawling. 
+        It then waits for all the tasks to finish and proceeds to stop each task.
+        """
         # Start the sessions through aiohttp
         async with aiohttp.ClientSession() as session:
             # Initialise the workers to handle more operations simultaneously
@@ -58,8 +88,13 @@ class WebCrawler():
             for worker in workers:
                 worker.cancel()
 
-    # Function to handle each task
     async def worker(self, session):
+        """
+        Handle each task/worker by running a loop that stops only when the task is cancelled.
+
+        Parameters:
+            session: The session created when all the workers are initialised used to handle client requests.
+        """
         # Each task (or worker) runs in a loop until cancelled
         while True:
             try:
@@ -67,8 +102,17 @@ class WebCrawler():
             except asyncio.CancelledError:
                 return
 
-    # Function to actually visit each URL and retrieve new URLs
     async def visit_url(self, session):
+        """
+        Visit each found URL and fetch new URLs.
+
+        The function gets the first URL in the queue following a FIFO order. It then checks the URL and the length
+        of the visited URLs set. If everything is okay, it adds the URL to the visited set and sends a request to 
+        the URL, trying to fetch new URLs.
+
+        Parameters:
+            session: The session created when all the workers are initialised used to handle client requests.
+        """
         # First get the first URL of the queue
         url = await self.queue.get()
 
@@ -92,7 +136,6 @@ class WebCrawler():
         # If you want to check the progression of the crawling...
         # if len(self.visited) % 10 == 0:
         #     print(len(self.visited))
-
         try:
             # Through the session created send a request to the URL
             async with session.get(url) as response:
@@ -103,16 +146,26 @@ class WebCrawler():
                     await self.parse_url(url, html_content)
                 # else:
                 #     print(f"Failed to retrieve {url} with status: {response.status}")
-
         except Exception as e:
             # print(f"Error fetching {url}: {str(e)}")
             pass
-
+        # The task has to be set to done whether or not the request worked
         finally:
             self.queue.task_done()
 
     # Pass the URL and the HTML content
     async def parse_url(self, current_url: str, text: str):
+        """
+        Parse the HTML content of the given URL and add any new URLs to the queue.
+
+        The function parses the HTML content of the given URL. It then joins the given URL (a.k.a. the base URL)
+        and all the found URLs. It checks whether the network location part is the same and if the new URL has
+        never been visited, the function adds it to the queue.
+
+        Parameters:
+            current_url (str): The URL currently analysed.
+            text (str): The HTML content of the current URL.
+        """
         # Parse the HTML content
         parser = URLParser()
         parser.feed(text)
@@ -126,7 +179,7 @@ class WebCrawler():
                     await self.queue.put(absolute_url)
 
 if __name__ == "__main__":
-    crawler = WebCrawler("https://www.degasperis.it/area_pazienti/articoli/54/la_patata.html")
+    crawler = WebCrawler("https://books.toscrape.com/")
     start = time.perf_counter()
     asyncio.run(crawler.crawl(), debug=True)
     end = time.perf_counter()
